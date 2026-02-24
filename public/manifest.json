@@ -1,0 +1,15 @@
+{
+  "name": "StrategyBacktest - Trading Strategy Backtest Platform",
+  "short_name": "StrategyBacktest",
+  "description": "Backtest trading strategies in seconds",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#111827",
+  "theme_color": "#111827",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any"
+    }
+  ]
+}
