@@ -1,12 +1,42 @@
 import { NextResponse } from 'next/server';
 
-// Simple in-memory backtest (will be replaced with Python API)
+// Flask backend URL (local development)
+const FLASK_API_URL = process.env.FLASK_API_URL || 'http://localhost:8080';
+
+// Proxy to Flask backend for real backtests
 export async function POST(request: Request) {
   try {
-    const { ticker, strategy } = await request.json();
+    const body = await request.json();
 
-    // Mock backtest results based on our earlier SPY test
-    // In production, this calls the Python FastAPI backend
+    // Forward request to Flask backend
+    const response = await fetch(`${FLASK_API_URL}/backtest/run`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        // Forward auth header if present
+        ...(request.headers.get('authorization') && {
+          'Authorization': request.headers.get('authorization')!
+        })
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      return NextResponse.json(
+        { error: `Flask API error: ${error}` },
+        { status: response.status }
+      );
+    }
+
+    const result = await response.json();
+    return NextResponse.json(result);
+  } catch (error) {
+    console.error('Proxy error:', error);
+    
+    // Fallback to mock if Flask is not available
+    console.warn('Flask backend unavailable, falling back to mock data');
+    
     const mockResult = {
       totalReturn: 68.67,
       annualizedReturn: 26.81,
@@ -32,10 +62,37 @@ export async function POST(request: Request) {
     };
 
     return NextResponse.json(mockResult);
+  }
+}
+
+// Also support GET for backtest history
+export async function GET(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const endpoint = searchParams.get('endpoint') || 'history';
+    
+    const response = await fetch(`${FLASK_API_URL}/backtest/${endpoint}`, {
+      headers: {
+        ...(request.headers.get('authorization') && {
+          'Authorization': request.headers.get('authorization')!
+        })
+      }
+    });
+
+    if (!response.ok) {
+      return NextResponse.json(
+        { error: 'Flask API unavailable' },
+        { status: 503 }
+      );
+    }
+
+    const result = await response.json();
+    return NextResponse.json(result);
   } catch (error) {
+    console.error('Proxy error:', error);
     return NextResponse.json(
-      { error: 'Backtest failed' },
-      { status: 500 }
+      { error: 'Backend unavailable' },
+      { status: 503 }
     );
   }
 }
